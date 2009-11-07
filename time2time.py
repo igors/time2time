@@ -106,7 +106,7 @@ def unix_to_gps(unixtime):
 
 def ntp_to_gps(ntptime):
     print "NTP to GPS: ",
-    gpstime = int(unixtime) - UNIX2GPS - NTP2UNIX + GPS_LEAP_SECONDS
+    gpstime = int(ntptime) - UNIX2GPS - NTP2UNIX + GPS_LEAP_SECONDS
     print gpstime
 
 def unix_to_ntp(unixtime):
