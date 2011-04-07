@@ -15,10 +15,13 @@ USE_UTC          = False
 def __parse_args():
     import sys
     usage =    """
-    %prog [--gh|--uh|--nh|--gu|--nu|--ug|--ng|--un|--gn] time
+    %prog [--gh|--uh|--nh|--gu|--nu|--hu|--ug|--ng|--hg|--un|--gn|--hn] time
 
     Convert between NTP, Unix, GPS and human readable time formats at will.
-    Note that human readable times are in your local time zone unless --utc is specified
+    Note that human readable times are in your local time zone unless --utc is specified.
+    When converting from human readable form, the expected format is
+    the default one used by python's strptime, e.g.,
+    "Thu Apr 7 18:42:31 2011" and is *always* interpreted in local time zone
     """
     parser = optparse.OptionParser(usage)
     parser.add_option("--gh", dest="gh", action="store_true",
@@ -32,21 +35,30 @@ def __parse_args():
                       help="GPS time to Unix time")
     parser.add_option("--nu", dest="nu", action="store_true",
                       help="NTP time to Unix time")
+    parser.add_option("--hu", dest="hu", action="store_true",
+                      help="human readable to Unix time")
 
     parser.add_option("--ug", dest="ug", action="store_true",
                       help="Unix time to GPS time")
     parser.add_option("--ng", dest="ng", action="store_true",
                       help="NTP time to GPS time")
+    parser.add_option("--hg", dest="hg", action="store_true",
+                      help="human readable to GPS time")
 
     parser.add_option("--un", dest="un", action="store_true",
                       help="Unix time to NTP time")
     parser.add_option("--gn", dest="gn", action="store_true",
                       help="GPS time to NTP time")
+    parser.add_option("--hn", dest="hn", action="store_true",
+                      help="human readable to NTP time")
     parser.add_option("-u", "--utc", dest="utc", action="store_true",
                       help="Print human-readable times in UTC/GMT instead of local time zone")
 
 
     options, args = parser.parse_args()
+
+    if options.utc and (options.hu or options.hn or options.hn):
+        raise Exception("Can't use --utc when converting from human readable format")
 
     if options.utc:
         global USE_UTC
@@ -75,6 +87,18 @@ def __unixtime_to_string(unixtime):
         gmtime = time.localtime(int(unixtime))
         return time.strftime("%a %b %d %H:%M:%S %Y %Z", gmtime)
 
+def __human_to_unix(humantime):
+    localtime = time.strptime(humantime)
+    return int(time.mktime(localtime))
+
+def __unix_to_ntp(unixtime):
+    ntptime = int(unixtime) + NTP2UNIX
+    return ntptime
+
+def __unix_to_gps(unixtime):
+    gpstime = int(unixtime) - UNIX2GPS + GPS_LEAP_SECONDS
+    return gpstime
+
 def gps_to_human(gpstime):
     print "GPS to human: ", 
     unixtime = int(gpstime) + UNIX2GPS - GPS_LEAP_SECONDS
@@ -99,25 +123,35 @@ def ntp_to_unix(ntptime):
     unixtime = int(ntptime) - NTP2UNIX
     print unixtime
 
+def human_to_unix(humantime):
+    print "Human to Unix: ",
+    print __human_to_unix(humantime)
+
 def unix_to_gps(unixtime):
     print "Unix to GPS: ",
-    gpstime = int(unixtime) - UNIX2GPS + GPS_LEAP_SECONDS
-    print gpstime
+    print __unix_to_gps(unixtime)
 
 def ntp_to_gps(ntptime):
     print "NTP to GPS: ",
     gpstime = int(ntptime) - UNIX2GPS - NTP2UNIX + GPS_LEAP_SECONDS
     print gpstime
 
+def human_to_gps(humantime):
+    print "Human to GPS: ",
+    print __unix_to_gps(__human_to_unix(humantime))
+
 def unix_to_ntp(unixtime):
     print "Unix to NTP: ",
-    ntptime = int(unixtime) + NTP2UNIX
-    print ntptime
+    print __unix_to_ntp(unixtime)
 
 def gps_to_ntp(gpstime):
     print "GPS to NTP: ",
     ntptime = int(gpstime) + UNIX2GPS + NTP2UNIX - GPS_LEAP_SECONDS
     print ntptime
+
+def human_to_ntp(humantime):
+    print "Human to NTP: ",
+    print __unix_to_ntp(__human_to_unix(humantime))
 
 
 if __name__ == "__main__":
@@ -132,11 +166,17 @@ if __name__ == "__main__":
         gps_to_unix(tm)
     elif options.nu:
         ntp_to_unix(tm)
+    elif options.hu:
+        human_to_unix(tm)
     elif options.ug:
         unix_to_gps(tm)
     elif options.ng:
         ntp_to_gps(tm)
+    elif options.hg:
+        human_to_gps(tm)
     elif options.un:
         unix_to_ntp(tm)
     elif options.gn:
         gps_to_ntp(tm)
+    elif options.hn:
+        human_to_ntp(tm)
